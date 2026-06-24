@@ -6,6 +6,23 @@ Runs both Binary (Performance-Cost) and Multi-Model (Performance) settings.
 import os
 import argparse
 import torch
+import json
+import numpy as np
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, torch.Tensor):
+            if obj.numel() == 1:
+                return obj.item()
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
+
 
 import config
 from preprocess import preprocess_performance_setting, preprocess_cost_setting
@@ -109,10 +126,16 @@ def main():
     print(f"Using Device: {get_device()}")
     
     if args.mode in ["binary", "both"]:
-        run_binary_routing(args.seed)
+        results_bin = run_binary_routing(args.seed)
+        if results_bin:
+            with open(os.path.join(config.CHECKPOINT_DIR, f"metrics_binary_seed{args.seed}.json"), "w") as f:
+                json.dump(results_bin, f, indent=4, cls=NumpyEncoder)
         
     if args.mode in ["multi", "both"]:
-        run_multimodel_routing(args.seed)
+        results_multi = run_multimodel_routing(args.seed)
+        if results_multi:
+            with open(os.path.join(config.CHECKPOINT_DIR, f"metrics_multi_seed{args.seed}.json"), "w") as f:
+                json.dump(results_multi, f, indent=4, cls=NumpyEncoder)
 
 if __name__ == "__main__":
     main()
